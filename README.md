@@ -13,3 +13,5 @@ Will load the file stored inside the `storage` directory into the esp32 and prin
 ```bash
 $ git submodule update --recursive --init
 ```
+
+## how to run
