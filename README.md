@@ -9,3 +9,7 @@ Will load the file stored inside the `storage` directory into the esp32 and prin
 - esp-idf 3.3.1
 
 ## how to setup
+
+```bash
+$ git submodule update --recursive --init
+```
