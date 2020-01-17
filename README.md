@@ -75,7 +75,7 @@ Hard resetting via RTS pin...
 then flash the code onto the board:
 
 ```bash
-make monitor flash
+make flash monitor
 ```
 
 The results should look similar to:
