@@ -13,8 +13,44 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
+#include "errno.h"
+#include <fcntl.h>
+
+
 
 static const char *TAG = "example";
+static const char *filename = "/spiffs/grassfed.txt";
+
+/* Common utilities */
+static char *read_file(const char *path)
+{
+    int fd, len;
+    struct stat st;
+    char *buf, *p;
+
+    if (stat(path, &st))
+        return NULL;
+
+    if ((fd = open(path, O_RDONLY)) < 0)
+        return NULL;
+
+    if (!(buf = p = malloc(st.st_size + 1)))
+        return NULL;
+
+    while ((len = read(fd, p, 1024)) > 0)
+        p += len;
+    close(fd);
+
+    if (len < 0)
+    {
+        free(buf);
+        return NULL;
+    }
+
+    *p = '\0';
+    return buf;
+}
+
 
 void app_main(void)
 {
@@ -50,48 +86,22 @@ void app_main(void)
         ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
     }
 
-    // Use POSIX and C standard library functions to work with files.
-    // First create a file.
-    ESP_LOGI(TAG, "Opening file");
-    FILE* f = fopen("/spiffs/hello.txt", "w");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return;
-    }
-    fprintf(f, "Hello World!\n");
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
-
-    // Check if destination file exists before renaming
+    // Check if destination file exists
     struct stat st;
-    if (stat("/spiffs/foo.txt", &st) == 0) {
-        // Delete it if it exists
-        unlink("/spiffs/foo.txt");
+    if (stat(filename, &st) == 0) {
+        // read size
+        size_t sz = st.st_size;
+        ESP_LOGI(TAG, "size of file: %d", sz);
     }
-
-    // Rename original file
-    ESP_LOGI(TAG, "Renaming file");
-    if (rename("/spiffs/hello.txt", "/spiffs/foo.txt") != 0) {
-        ESP_LOGE(TAG, "Rename failed");
+    // This may trip a I/O error due to the issue within SPIFFs itself 
+    // https://github.com/espressif/esp-idf/issues/1732
+    char *buf = read_file(filename);
+    if(buf == NULL) {
+        ESP_LOGE(TAG, "Error reading file %s", strerror(errno));
         return;
     }
-
-    // Open renamed file for reading
-    ESP_LOGI(TAG, "Reading file");
-    f = fopen("/spiffs/foo.txt", "r");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-        return;
-    }
-    char line[64];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-    // strip newline
-    char* pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
-    }
-    ESP_LOGI(TAG, "Read from file: '%s'", line);
+    ESP_LOGI(TAG, "File contents:\n");
+    ESP_LOGI(TAG, "%s\n",buf);
 
     // All done, unmount partition and disable SPIFFS
     esp_vfs_spiffs_unregister(NULL);
